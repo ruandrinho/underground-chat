@@ -6,7 +6,7 @@ import aiofiles
 from environs import Env
 
 
-async def parse_minechat(host, port, history_file):
+async def read_chat(host, port, history_file):
     reader, writer = await asyncio.open_connection(host, port)
     while not reader.at_eof():
         message = await reader.readline()
@@ -33,7 +33,7 @@ def main():
         'history_file': args.historyfile if args.historyfile else env('HISTORY_FILE', default='minechat.history')
     }
 
-    asyncio.run(parse_minechat(**minechat_config))
+    asyncio.run(read_chat(**minechat_config))
 
 
 if __name__ == '__main__':
