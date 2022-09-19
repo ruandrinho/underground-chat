@@ -4,7 +4,6 @@ import json
 import logging
 
 import aiofiles
-from aioconsole import ainput
 from environs import Env
 
 logger = logging.getLogger(__name__)
@@ -47,7 +46,7 @@ async def submit_message(writer, message):
     await writer.drain()
 
 
-async def send_messages(host, port, token, nickname):
+async def send_message(message, host, port, token, nickname):
     reader, writer = await asyncio.open_connection(host, port)
     greeting_query = await reader.readline()
     logger.info(greeting_query.decode().strip())
@@ -61,9 +60,8 @@ async def send_messages(host, port, token, nickname):
         credentials = await sign_up(reader, writer, nickname, send_blank=True)
     await save_token(credentials['nickname'], credentials['account_hash'])
 
-    while True:
-        message = await ainput('>>> ')
-        await submit_message(writer, message)
+    await submit_message(writer, message)
+    writer.close()
 
 
 def main():
@@ -77,6 +75,7 @@ def main():
     env.read_env()
 
     parser = argparse.ArgumentParser(description='Send messages to chat')
+    parser.add_argument('message', nargs='+', help='Message for chat')
     parser.add_argument('--host', '-s', help='Host')
     parser.add_argument('--port', '-p', type=int, help='Port')
     parser.add_argument('--token', '-t', help='Chat token')
@@ -84,13 +83,14 @@ def main():
     args = parser.parse_args()
 
     minechat_config = {
+        'message': args.message[0],
         'host': args.host if args.host else env('HOST', default='minechat.dvmn.org'),
         'port': args.port if args.port else env.int('WRITING_PORT', default=5050),
         'token': args.token if args.token else env('CHAT_TOKEN', default=''),
         'nickname': args.nickname if args.nickname else env('CHAT_NICKNAME', default='')
     }
 
-    asyncio.run(send_messages(**minechat_config))
+    asyncio.run(send_message(**minechat_config))
 
 
 if __name__ == '__main__':
