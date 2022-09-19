@@ -9,26 +9,30 @@ from environs import Env
 logger = logging.getLogger(__name__)
 
 
-async def sign_in(reader, writer, token):
-    logger.info(f'Sending "{token}"')
-    writer.write(f'{token}\n'.encode())
-    await writer.drain()
+async def receive_credentials(reader):
     credentials_response = await reader.readline()
     credentials = json.loads(credentials_response.decode().strip())
     logger.info(f'Received {credentials}')
     return credentials
 
 
-async def sign_up(reader, writer, nickname):
+async def sign_in(reader, writer, token):
+    logger.info(f'Sending "{token}"')
+    writer.write(f'{token}\n'.encode())
+    await writer.drain()
+    return await receive_credentials(reader)
+
+
+async def sign_up(reader, writer, nickname, send_blank=False):
+    if send_blank:
+        writer.write('\n'.encode())
+        await writer.drain()
     nickname_query = await reader.readline()
     logger.info(nickname_query.decode().strip())
     logger.info(f'Sending "{nickname}"')
     writer.write(f'{nickname}\n'.encode())
     await writer.drain()
-    credentials_response = await reader.readline()
-    credentials = json.loads(credentials_response.decode().strip())
-    logger.info(f'Received {credentials}')
-    return credentials
+    return await receive_credentials(reader)
 
 
 async def send_messages(host, port, token, nickname):
@@ -42,9 +46,7 @@ async def send_messages(host, port, token, nickname):
             logger.warning('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
             credentials = await sign_up(reader, writer, nickname)
     else:
-        writer.write('\n'.encode())
-        await writer.drain()
-        credentials = await sign_up(reader, writer, nickname)
+        credentials = await sign_up(reader, writer, nickname, send_blank=True)
 
     while True:
         message = await ainput('Type a message: ')
