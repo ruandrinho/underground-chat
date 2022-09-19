@@ -42,6 +42,7 @@ async def sign_up(reader, writer, nickname, send_blank=False):
 
 
 async def submit_message(writer, message):
+    message = message.replace('\n', ' ')
     writer.write(f'{message}\n\n'.encode())
     await writer.drain()
 
@@ -61,7 +62,7 @@ async def send_messages(host, port, token, nickname):
     await save_token(credentials['nickname'], credentials['account_hash'])
 
     while True:
-        message = await ainput('Type a message: ')
+        message = await ainput('>>> ')
         await submit_message(writer, message)
 
 
