@@ -41,6 +41,11 @@ async def sign_up(reader, writer, nickname, send_blank=False):
     return await receive_credentials(reader)
 
 
+async def submit_message(writer, message):
+    writer.write(f'{message}\n\n'.encode())
+    await writer.drain()
+
+
 async def send_messages(host, port, token, nickname):
     reader, writer = await asyncio.open_connection(host, port)
     greeting_query = await reader.readline()
@@ -57,8 +62,7 @@ async def send_messages(host, port, token, nickname):
 
     while True:
         message = await ainput('Type a message: ')
-        writer.write(f'{message}\n\n'.encode())
-        await writer.drain()
+        await submit_message(writer, message)
 
 
 def main():
