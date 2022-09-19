@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 
+import aiofiles
 from aioconsole import ainput
 from environs import Env
 
@@ -14,6 +15,11 @@ async def receive_credentials(reader):
     credentials = json.loads(credentials_response.decode().strip())
     logger.info(f'Received {credentials}')
     return credentials
+
+
+async def save_token(nickname, token):
+    async with aiofiles.open(f'{nickname}.token', 'w') as tokenfile:
+        await tokenfile.write(token)
 
 
 async def sign_in(reader, writer, token):
@@ -47,6 +53,7 @@ async def send_messages(host, port, token, nickname):
             credentials = await sign_up(reader, writer, nickname)
     else:
         credentials = await sign_up(reader, writer, nickname, send_blank=True)
+    await save_token(credentials['nickname'], credentials['account_hash'])
 
     while True:
         message = await ainput('Type a message: ')
