@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import json
 import logging
 
 from aioconsole import ainput
@@ -13,9 +14,9 @@ async def sign_in(reader, writer, token):
     writer.write(f'{token}\n'.encode())
     await writer.drain()
     credentials_response = await reader.readline()
-    credentials_response = credentials_response.decode().strip()
-    logger.info(credentials_response)
-    return credentials_response
+    credentials = json.loads(credentials_response.decode().strip())
+    logger.info(f'Received {credentials}')
+    return credentials
 
 
 async def sign_up(reader, writer, nickname):
@@ -25,9 +26,9 @@ async def sign_up(reader, writer, nickname):
     writer.write(f'{nickname}\n'.encode())
     await writer.drain()
     credentials_response = await reader.readline()
-    credentials_response = credentials_response.decode().strip()
-    logger.info(credentials_response)
-    return credentials_response
+    credentials = json.loads(credentials_response.decode().strip())
+    logger.info(f'Received {credentials}')
+    return credentials
 
 
 async def send_messages(host, port, token, nickname):
@@ -36,13 +37,14 @@ async def send_messages(host, port, token, nickname):
     logger.info(greeting_query.decode().strip())
 
     if token:
-        credentials_response = await sign_in(reader, writer, token)
-        if credentials_response == 'null':
-            credentials_response = await sign_up(reader, writer, nickname)
+        credentials = await sign_in(reader, writer, token)
+        if credentials is None:
+            logger.warning('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
+            credentials = await sign_up(reader, writer, nickname)
     else:
         writer.write('\n'.encode())
         await writer.drain()
-        credentials_response = await sign_up(reader, writer, nickname)
+        credentials = await sign_up(reader, writer, nickname)
 
     while True:
         message = await ainput('Type a message: ')
