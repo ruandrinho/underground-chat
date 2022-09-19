@@ -77,10 +77,10 @@ def main():
     env.read_env()
 
     parser = argparse.ArgumentParser(description='Send messages to chat')
-    parser.add_argument('--host', '-s', action='store', help='Host')
-    parser.add_argument('--port', '-p', type=int, action='store', help='Port')
-    parser.add_argument('--token', '-t', action='store', help='Chat token')
-    parser.add_argument('--nickname', '-n', action='store', help='Chat nickname')
+    parser.add_argument('--host', '-s', help='Host')
+    parser.add_argument('--port', '-p', type=int, help='Port')
+    parser.add_argument('--token', '-t', help='Chat token')
+    parser.add_argument('--nickname', '-n', help='Chat nickname')
     args = parser.parse_args()
 
     minechat_config = {
