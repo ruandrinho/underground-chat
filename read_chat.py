@@ -22,9 +22,9 @@ def main():
     env.read_env()
 
     parser = argparse.ArgumentParser(description='Read chat and save messages to file')
-    parser.add_argument('--host', '-s', action='store', help='Host')
-    parser.add_argument('--port', '-p', type=int, action='store', help='Port')
-    parser.add_argument('--historyfile', '-f', action='store', help='File for history')
+    parser.add_argument('--host', '-s', help='Host')
+    parser.add_argument('--port', '-p', type=int, help='Port')
+    parser.add_argument('--historyfile', '-f', help='File for history')
     args = parser.parse_args()
 
     minechat_config = {
