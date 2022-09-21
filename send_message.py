@@ -2,22 +2,13 @@ import argparse
 import asyncio
 import json
 import logging
-from contextlib import asynccontextmanager
 
 import aiofiles
 from environs import Env
 
+from minechat_utils import get_minechat_connection
+
 logger = logging.getLogger(__name__)
-
-
-@asynccontextmanager
-async def get_minechat_connection(host, port):
-    reader, writer = await asyncio.open_connection(host, port)
-    try:
-        yield reader, writer
-    finally:
-        writer.close()
-        await writer.wait_closed()
 
 
 async def receive_credentials(reader):
@@ -34,23 +25,23 @@ async def save_token(nickname, token):
 
 async def sign_in(reader, writer, token):
     logger.info(f'Sending "{token}"')
-    await write_to_chat(f'{token}\n')
+    await write_to_chat(writer, f'{token}\n')
     return await receive_credentials(reader)
 
 
 async def sign_up(reader, writer, nickname, send_blank=False):
     if send_blank:
-        await write_to_chat('\n')
+        await write_to_chat(writer, '\n')
     nickname_query = await reader.readline()
     logger.info(nickname_query.decode().strip())
     logger.info(f'Sending "{nickname}"')
-    await write_to_chat(f'{nickname}\n')
+    await write_to_chat(writer, f'{nickname}\n')
     return await receive_credentials(reader)
 
 
 async def submit_message(writer, message):
     message = message.replace('\n', ' ')
-    await write_to_chat(f'{message}\n\n')
+    await write_to_chat(writer, f'{message}\n\n')
 
 
 async def write_to_chat(writer, message):
