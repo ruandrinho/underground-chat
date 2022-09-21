@@ -9,13 +9,16 @@ from environs import Env
 async def read_chat(host, port, history_file):
     reader, writer = await asyncio.open_connection(host, port)
     chatfile = aiofiles.open(history_file, 'a')
-    while not reader.at_eof():
-        message = await reader.readline()
-        now = datetime.datetime.now()
-        message_with_datetime = f'[{now.strftime("%d.%m.%y %H:%M")}] {message.decode()}'
-        print(message_with_datetime, end='')
-        chatfile.write(message_with_datetime)
-    chatfile.close()
+    try:
+        while not reader.at_eof():
+            message = await reader.readline()
+            now = datetime.datetime.now()
+            message_with_datetime = f'[{now.strftime("%d.%m.%y %H:%M")}] {message.decode()}'
+            print(message_with_datetime, end='')
+            chatfile.write(message_with_datetime)
+    finally:
+        chatfile.close()
+        writer.close()
 
 
 def main():
