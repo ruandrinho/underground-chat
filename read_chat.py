@@ -1,20 +1,11 @@
 import argparse
 import asyncio
 import datetime
-from contextlib import asynccontextmanager
 
 import aiofiles
 from environs import Env
 
-
-@asynccontextmanager
-async def get_minechat_connection(host, port):
-    reader, writer = await asyncio.open_connection(host, port)
-    try:
-        yield reader, writer
-    finally:
-        writer.close()
-        await writer.wait_closed()
+from minechat_utils import get_minechat_connection
 
 
 async def read_chat(host, port, history_file):
