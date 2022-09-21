@@ -23,26 +23,27 @@ async def save_token(nickname, token):
 
 async def sign_in(reader, writer, token):
     logger.info(f'Sending "{token}"')
-    writer.write(f'{token}\n'.encode())
-    await writer.drain()
+    await write_to_chat(f'{token}\n')
     return await receive_credentials(reader)
 
 
 async def sign_up(reader, writer, nickname, send_blank=False):
     if send_blank:
-        writer.write('\n'.encode())
-        await writer.drain()
+        await write_to_chat('\n')
     nickname_query = await reader.readline()
     logger.info(nickname_query.decode().strip())
     logger.info(f'Sending "{nickname}"')
-    writer.write(f'{nickname}\n'.encode())
-    await writer.drain()
+    await write_to_chat(f'{nickname}\n')
     return await receive_credentials(reader)
 
 
 async def submit_message(writer, message):
     message = message.replace('\n', ' ')
-    writer.write(f'{message}\n\n'.encode())
+    await write_to_chat(f'{message}\n\n')
+
+
+async def write_to_chat(writer, message):
+    writer.write(message.encode())
     await writer.drain()
 
 
