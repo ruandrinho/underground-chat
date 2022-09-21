@@ -2,11 +2,22 @@ import argparse
 import asyncio
 import json
 import logging
+from contextlib import asynccontextmanager
 
 import aiofiles
 from environs import Env
 
 logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def get_minechat_connection(host, port):
+    reader, writer = await asyncio.open_connection(host, port)
+    try:
+        yield reader, writer
+    finally:
+        writer.close()
+        await writer.wait_closed()
 
 
 async def receive_credentials(reader):
@@ -48,21 +59,20 @@ async def write_to_chat(writer, message):
 
 
 async def send_message(message, host, port, token, nickname):
-    reader, writer = await asyncio.open_connection(host, port)
-    greeting_query = await reader.readline()
-    logger.info(greeting_query.decode().strip())
+    async with get_minechat_connection(host, port) as (reader, writer):
+        greeting_query = await reader.readline()
+        logger.info(greeting_query.decode().strip())
 
-    if token:
-        credentials = await sign_in(reader, writer, token)
-        if credentials is None:
-            logger.warning('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
-            credentials = await sign_up(reader, writer, nickname)
-    else:
-        credentials = await sign_up(reader, writer, nickname, send_blank=True)
-    await save_token(credentials['nickname'], credentials['account_hash'])
+        if token:
+            credentials = await sign_in(reader, writer, token)
+            if credentials is None:
+                logger.warning('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
+                credentials = await sign_up(reader, writer, nickname)
+        else:
+            credentials = await sign_up(reader, writer, nickname, send_blank=True)
+        await save_token(credentials['nickname'], credentials['account_hash'])
 
-    await submit_message(writer, message)
-    writer.close()
+        await submit_message(writer, message)
 
 
 def main():
