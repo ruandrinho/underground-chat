@@ -19,6 +19,7 @@ async def read_chat(host, port, history_file):
     finally:
         chatfile.close()
         writer.close()
+        await writer.wait_closed()
 
 
 def main():
