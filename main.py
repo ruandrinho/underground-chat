@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 import aiofiles
+from async_timeout import timeout
 from environs import Env
 
 import gui
@@ -70,12 +71,17 @@ async def read_messages(host, port, messages_queue, history_queue, status_update
     status_updates_queue.put_nowait(gui.ReadConnectionStateChanged.INITIATED)
     async with get_minechat_connection(host, port) as (reader, writer):
         while not reader.at_eof():
-            message = await reader.readline()
-            message = message.decode().strip()
-            messages_queue.put_nowait(message)
-            history_queue.put_nowait(message)
-            watchdog_queue.put_nowait('New message in chat')
-            status_updates_queue.put_nowait(gui.ReadConnectionStateChanged.ESTABLISHED)
+            try:
+                async with timeout(1) as cm:
+                    message = await reader.readline()
+                    message = message.decode().strip()
+                    messages_queue.put_nowait(message)
+                    history_queue.put_nowait(message)
+                    watchdog_queue.put_nowait('New message in chat')
+                    status_updates_queue.put_nowait(gui.ReadConnectionStateChanged.ESTABLISHED)
+            except asyncio.exceptions.TimeoutError:
+                if cm.expired:
+                    watchdog_queue.put_nowait('1s timeout is elapsed')
 
 
 async def send_messages(
