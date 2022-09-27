@@ -1,5 +1,6 @@
 import tkinter as tk
 import asyncio
+from tkinter import messagebox
 from tkinter.scrolledtext import ScrolledText
 from enum import Enum
 
@@ -29,6 +30,10 @@ class SendingConnectionStateChanged(Enum):
 class NicknameReceived:
     def __init__(self, nickname):
         self.nickname = nickname
+
+
+async def show_token_error():
+    messagebox.showerror('Неверный токен', 'Проверьте токен, сервер его не узнал')
 
 
 def process_new_message(input_field, sending_queue):

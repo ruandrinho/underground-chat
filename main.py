@@ -13,6 +13,10 @@ from minechat_utils import get_minechat_connection
 logger = logging.getLogger(__name__)
 
 
+class InvalidToken(Exception):
+    pass
+
+
 async def receive_credentials(reader):
     credentials_response = await reader.readline()
     credentials = json.loads(credentials_response.decode().strip())
@@ -65,14 +69,9 @@ async def send_messages(host, port, token, nickname, sending_queue, messages_que
         greeting_query = await reader.readline()
         logger.info(greeting_query.decode().strip())
 
-        if token:
-            credentials = await sign_in(reader, writer, token)
-            if credentials is None:
-                logger.warning('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
-                credentials = await sign_up(reader, writer, nickname)
-        else:
-            credentials = await sign_up(reader, writer, nickname, send_blank=True)
-        await save_token(credentials['nickname'], credentials['account_hash'])
+        credentials = await sign_in(reader, writer, token)
+        if credentials is None:
+            raise InvalidToken
         messages_queue.put_nowait(f'Выполнена авторизация. Пользователь {credentials["nickname"]}')
 
         while True:
@@ -131,17 +130,20 @@ async def main():
     await restore_messages(config['history_file'], messages_queue)
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(
-        await asyncio.gather(
-            gui.draw(messages_queue, sending_queue, status_updates_queue),
-            read_messages(config['host'], config['reading_port'], messages_queue, history_queue),
-            send_messages(
-                config['host'], config['writing_port'], config['token'], config['nickname'],
-                sending_queue, messages_queue
-            ),
-            save_messages(config['history_file'], history_queue)
+    try:
+        loop.run_until_complete(
+            await asyncio.gather(
+                gui.draw(messages_queue, sending_queue, status_updates_queue),
+                read_messages(config['host'], config['reading_port'], messages_queue, history_queue),
+                send_messages(
+                    config['host'], config['writing_port'], config['token'], config['nickname'],
+                    sending_queue, messages_queue
+                ),
+                save_messages(config['history_file'], history_queue)
+            )
         )
-    )
+    except InvalidToken:
+        await gui.show_token_error()
 
 
 if __name__ == '__main__':
