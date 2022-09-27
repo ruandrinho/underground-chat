@@ -10,7 +10,18 @@ from environs import Env
 import gui
 from minechat_utils import get_minechat_connection
 
-logger = logging.getLogger(__name__)
+
+def get_info_logger(name, format):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    logger_sh = logging.StreamHandler()
+    logger_sh.setFormatter(logging.Formatter(fmt=format, style='{'))
+    logger.addHandler(logger_sh)
+    return logger
+
+
+logger = get_info_logger(__name__, '{asctime} - {name} - {levelname} - {message}')
+watchdog_logger = get_info_logger('watchdog', '[{created:.0f}] {message}')
 
 
 class InvalidToken(Exception):
@@ -55,7 +66,7 @@ async def write_to_chat(writer, message):
     await writer.drain()
 
 
-async def read_messages(host, port, messages_queue, history_queue, status_updates_queue):
+async def read_messages(host, port, messages_queue, history_queue, status_updates_queue, watchdog_queue):
     status_updates_queue.put_nowait(gui.ReadConnectionStateChanged.INITIATED)
     async with get_minechat_connection(host, port) as (reader, writer):
         while not reader.at_eof():
@@ -63,10 +74,12 @@ async def read_messages(host, port, messages_queue, history_queue, status_update
             message = message.decode().strip()
             messages_queue.put_nowait(message)
             history_queue.put_nowait(message)
+            watchdog_queue.put_nowait('New message in chat')
             status_updates_queue.put_nowait(gui.ReadConnectionStateChanged.ESTABLISHED)
 
 
-async def send_messages(host, port, token, nickname, sending_queue, messages_queue, status_updates_queue):
+async def send_messages(
+        host, port, token, nickname, sending_queue, messages_queue, status_updates_queue, watchdog_queue):
     status_updates_queue.put_nowait(gui.SendingConnectionStateChanged.INITIATED)
     async with get_minechat_connection(host, port) as (reader, writer):
         greeting_query = await reader.readline()
@@ -83,6 +96,7 @@ async def send_messages(host, port, token, nickname, sending_queue, messages_que
             message = await sending_queue.get()
             logger.info(f'Sending "{message}"')
             await submit_message(writer, message)
+            watchdog_queue.put_nowait('Message sent')
             status_updates_queue.put_nowait(gui.SendingConnectionStateChanged.ESTABLISHED)
 
 
@@ -101,12 +115,13 @@ async def restore_messages(filepath, messages_queue):
         messages_queue.put_nowait(history)
 
 
-async def main():
-    logging.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.INFO
-    )
+async def watch_for_connection(watchdog_queue):
+    while True:
+        message = await watchdog_queue.get()
+        watchdog_logger.info(f'Connection is alive. {message}')
 
+
+async def main():
     env = Env()
     env.read_env()
 
@@ -132,6 +147,7 @@ async def main():
     sending_queue = asyncio.Queue()
     history_queue = asyncio.Queue()
     status_updates_queue = asyncio.Queue()
+    watchdog_queue = asyncio.Queue()
 
     await restore_messages(config['history_file'], messages_queue)
 
@@ -142,13 +158,14 @@ async def main():
                 gui.draw(messages_queue, sending_queue, status_updates_queue),
                 read_messages(
                     config['host'], config['reading_port'],
-                    messages_queue, history_queue, status_updates_queue
+                    messages_queue, history_queue, status_updates_queue, watchdog_queue
                 ),
                 send_messages(
                     config['host'], config['writing_port'], config['token'], config['nickname'],
-                    sending_queue, messages_queue, status_updates_queue
+                    sending_queue, messages_queue, status_updates_queue, watchdog_queue
                 ),
-                save_messages(config['history_file'], history_queue)
+                save_messages(config['history_file'], history_queue),
+                watch_for_connection(watchdog_queue)
             )
         )
     except InvalidToken:
