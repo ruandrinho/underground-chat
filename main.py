@@ -3,6 +3,7 @@ import asyncio
 import logging
 import gui
 import time
+from pathlib import Path
 
 import aiofiles
 from environs import Env
@@ -18,18 +19,28 @@ async def generate_msgs(queue):
         await asyncio.sleep(1)
 
 
-async def read_msgs(host, port, queue):
-    async with (
-        # aiofiles.open(history_file, 'a') as chatfile,
-        get_minechat_connection(host, port) as (reader, writer)
-    ):
+async def read_messages(host, port, messages_queue, history_queue):
+    async with get_minechat_connection(host, port) as (reader, writer):
         while not reader.at_eof():
             message = await reader.readline()
-            queue.put_nowait(message.decode().strip())
-            # now = datetime.datetime.now()
-            # message_with_datetime = f'[{now.strftime("%d.%m.%y %H:%M")}] {message.decode()}'
-            # print(message_with_datetime, end='')
-            # await chatfile.write(message_with_datetime)
+            message = message.decode().strip()
+            messages_queue.put_nowait(message)
+            history_queue.put_nowait(message)
+
+
+async def save_messages(filepath, history_queue):
+    async with aiofiles.open(filepath, 'a', encoding='utf-8') as chatfile:
+        while True:
+            message = await history_queue.get()
+            await chatfile.write(f'{message}\n')
+
+
+async def restore_messages(filepath, messages_queue):
+    if not Path(filepath).exists():
+        return
+    async with aiofiles.open(filepath, 'r', encoding='utf-8') as chatfile:
+        history = await chatfile.read()
+        messages_queue.put_nowait(history)
 
 
 async def main():
@@ -61,13 +72,17 @@ async def main():
 
     messages_queue = asyncio.Queue()
     sending_queue = asyncio.Queue()
+    history_queue = asyncio.Queue()
     status_updates_queue = asyncio.Queue()
+
+    await restore_messages(config['history_file'], messages_queue)
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         await asyncio.gather(
             gui.draw(messages_queue, sending_queue, status_updates_queue),
-            read_msgs(config['host'], config['reading_port'], messages_queue)
+            read_messages(config['host'], config['reading_port'], messages_queue, history_queue),
+            save_messages(config['history_file'], history_queue)
         )
     )
 
