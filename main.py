@@ -55,16 +55,19 @@ async def write_to_chat(writer, message):
     await writer.drain()
 
 
-async def read_messages(host, port, messages_queue, history_queue):
+async def read_messages(host, port, messages_queue, history_queue, status_updates_queue):
+    status_updates_queue.put_nowait(gui.ReadConnectionStateChanged.INITIATED)
     async with get_minechat_connection(host, port) as (reader, writer):
         while not reader.at_eof():
             message = await reader.readline()
             message = message.decode().strip()
             messages_queue.put_nowait(message)
             history_queue.put_nowait(message)
+            status_updates_queue.put_nowait(gui.ReadConnectionStateChanged.ESTABLISHED)
 
 
-async def send_messages(host, port, token, nickname, sending_queue, messages_queue):
+async def send_messages(host, port, token, nickname, sending_queue, messages_queue, status_updates_queue):
+    status_updates_queue.put_nowait(gui.SendingConnectionStateChanged.INITIATED)
     async with get_minechat_connection(host, port) as (reader, writer):
         greeting_query = await reader.readline()
         logger.info(greeting_query.decode().strip())
@@ -73,11 +76,14 @@ async def send_messages(host, port, token, nickname, sending_queue, messages_que
         if credentials is None:
             raise InvalidToken
         messages_queue.put_nowait(f'Выполнена авторизация. Пользователь {credentials["nickname"]}')
+        event = gui.NicknameReceived(credentials['nickname'])
+        status_updates_queue.put_nowait(event)
 
         while True:
             message = await sending_queue.get()
             logger.info(f'Sending "{message}"')
             await submit_message(writer, message)
+            status_updates_queue.put_nowait(gui.SendingConnectionStateChanged.ESTABLISHED)
 
 
 async def save_messages(filepath, history_queue):
@@ -134,10 +140,13 @@ async def main():
         loop.run_until_complete(
             await asyncio.gather(
                 gui.draw(messages_queue, sending_queue, status_updates_queue),
-                read_messages(config['host'], config['reading_port'], messages_queue, history_queue),
+                read_messages(
+                    config['host'], config['reading_port'],
+                    messages_queue, history_queue, status_updates_queue
+                ),
                 send_messages(
                     config['host'], config['writing_port'], config['token'], config['nickname'],
-                    sending_queue, messages_queue
+                    sending_queue, messages_queue, status_updates_queue
                 ),
                 save_messages(config['history_file'], history_queue)
             )

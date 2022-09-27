@@ -32,14 +32,14 @@ class NicknameReceived:
         self.nickname = nickname
 
 
-async def show_token_error():
-    messagebox.showerror('Неверный токен', 'Проверьте токен, сервер его не узнал')
-
-
 def process_new_message(input_field, sending_queue):
     text = input_field.get()
     sending_queue.put_nowait(text)
     input_field.delete(0, tk.END)
+
+
+async def show_token_error():
+    messagebox.showerror('Неверный токен', 'Проверьте токен, сервер его не узнал')
 
 
 async def update_tk(root_frame, interval=1 / 120):
