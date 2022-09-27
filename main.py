@@ -1,22 +1,66 @@
 import argparse
 import asyncio
+import json
 import logging
-import gui
-import time
 from pathlib import Path
 
 import aiofiles
 from environs import Env
 
+import gui
 from minechat_utils import get_minechat_connection
 
 logger = logging.getLogger(__name__)
 
 
-async def generate_msgs(queue):
-    while True:
-        queue.put_nowait(round(time.time()))
-        await asyncio.sleep(1)
+async def auth(host, port, token, nickname, messages_queue):
+    async with get_minechat_connection(host, port) as (reader, writer):
+        greeting_query = await reader.readline()
+        logger.info(greeting_query.decode().strip())
+
+        if token:
+            credentials = await sign_in(reader, writer, token)
+            if credentials is None:
+                logger.warning('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
+                credentials = await sign_up(reader, writer, nickname)
+        else:
+            credentials = await sign_up(reader, writer, nickname, send_blank=True)
+        await save_token(credentials['nickname'], credentials['account_hash'])
+
+    messages_queue.put_nowait(f'Выполнена авторизация. Пользователь {credentials["nickname"]}')
+
+
+async def receive_credentials(reader):
+    credentials_response = await reader.readline()
+    credentials = json.loads(credentials_response.decode().strip())
+    logger.info(f'Received {credentials}')
+    return credentials
+
+
+async def save_token(nickname, token):
+    async with aiofiles.open(f'{nickname}.token', 'w') as tokenfile:
+        await tokenfile.write(token)
+
+
+async def sign_in(reader, writer, token):
+    logger.info(f'Sending "{token}"')
+    await write_to_chat(writer, f'{token}\n')
+    return await receive_credentials(reader)
+
+
+async def sign_up(reader, writer, nickname, send_blank=False):
+    if send_blank:
+        await write_to_chat(writer, '\n')
+    nickname_query = await reader.readline()
+    logger.info(nickname_query.decode().strip())
+    logger.info(f'Sending "{nickname}"')
+    await write_to_chat(writer, f'{nickname}\n')
+    return await receive_credentials(reader)
+
+
+async def write_to_chat(writer, message):
+    writer.write(message.encode())
+    await writer.drain()
 
 
 async def read_messages(host, port, messages_queue, history_queue):
@@ -26,6 +70,13 @@ async def read_messages(host, port, messages_queue, history_queue):
             message = message.decode().strip()
             messages_queue.put_nowait(message)
             history_queue.put_nowait(message)
+
+
+async def send_messages(host, port, sending_queue, messages_queue, history_queue):
+    while True:
+        message = await sending_queue.get()
+        messages_queue.put_nowait(message)
+        history_queue.put_nowait(message)
 
 
 async def save_messages(filepath, history_queue):
@@ -76,12 +127,14 @@ async def main():
     status_updates_queue = asyncio.Queue()
 
     await restore_messages(config['history_file'], messages_queue)
+    await auth(config['host'], config['writing_port'], config['token'], config['nickname'], messages_queue)
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(
         await asyncio.gather(
             gui.draw(messages_queue, sending_queue, status_updates_queue),
             read_messages(config['host'], config['reading_port'], messages_queue, history_queue),
+            send_messages(config['host'], config['writing_port'], sending_queue, messages_queue, history_queue),
             save_messages(config['history_file'], history_queue)
         )
     )
