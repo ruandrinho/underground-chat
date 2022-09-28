@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 import aiofiles
+import anyio
 from async_timeout import timeout
 from environs import Env
 
@@ -27,6 +28,27 @@ watchdog_logger = get_info_logger('watchdog', '[{created:.0f}] {message}')
 
 class InvalidToken(Exception):
     pass
+
+
+async def handle_connection(config, messages_queue, sending_queue, history_queue, status_updates_queue, watchdog_queue):
+    try:
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(read_messages, config['host'], config['reading_port'],
+                          messages_queue, history_queue, status_updates_queue, watchdog_queue)
+            tg.start_soon(send_messages, config['host'], config['writing_port'], config['token'], config['nickname'],
+                          sending_queue, messages_queue, status_updates_queue, watchdog_queue)
+            tg.start_soon(watch_for_connection, watchdog_queue)
+    except ConnectionError:
+        logger.info('Reconnecting')
+        tg.cancel_scope.cancel()
+        await handle_connection(
+            config,
+            messages_queue,
+            sending_queue,
+            history_queue,
+            status_updates_queue,
+            watchdog_queue
+        )
 
 
 async def receive_credentials(reader):
@@ -124,7 +146,11 @@ async def restore_messages(filepath, messages_queue):
 async def watch_for_connection(watchdog_queue):
     while True:
         message = await watchdog_queue.get()
-        watchdog_logger.info(f'Connection is alive. {message}')
+        if 'timeout' in message:
+            watchdog_logger.info(message)
+            raise ConnectionError
+        else:
+            watchdog_logger.info(f'Connection is alive. Source: {message}')
 
 
 async def main():
@@ -162,16 +188,15 @@ async def main():
         loop.run_until_complete(
             await asyncio.gather(
                 gui.draw(messages_queue, sending_queue, status_updates_queue),
-                read_messages(
-                    config['host'], config['reading_port'],
-                    messages_queue, history_queue, status_updates_queue, watchdog_queue
-                ),
-                send_messages(
-                    config['host'], config['writing_port'], config['token'], config['nickname'],
-                    sending_queue, messages_queue, status_updates_queue, watchdog_queue
-                ),
                 save_messages(config['history_file'], history_queue),
-                watch_for_connection(watchdog_queue)
+                handle_connection(
+                    config,
+                    messages_queue,
+                    sending_queue,
+                    history_queue,
+                    status_updates_queue,
+                    watchdog_queue
+                )
             )
         )
     except InvalidToken:
