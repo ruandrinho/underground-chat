@@ -12,6 +12,18 @@ pip install -r requirements.txt
 
 ## Как запустить
 
+Главное окно чата:
+```sh
+python main.py
+```
+
+Регистрация пользователя:
+```sh
+python reg.py
+```
+
+Также можно пользоваться скриптами с консольным интерфейсом:
+
 Чтение чата:
 ```sh
 python read_chat.py
@@ -27,6 +39,8 @@ python send_message.py "<MESSAGE>"
 Параметры скриптов можно задать в файле `.env`:
 
 ```sh
+SMALL_RECONNECT_TIMEOUT=
+BIG_RECONNECT_TIMEOUT=
 HOST=
 READING_PORT=
 WRITING_PORT=
