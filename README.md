@@ -17,10 +17,14 @@ pip install -r requirements.txt
 python main.py
 ```
 
+![image](https://user-images.githubusercontent.com/84133942/193020007-9d34db9e-ac66-4f63-a2a0-4dd3e4d89958.png)
+
 Регистрация пользователя:
 ```sh
 python reg.py
 ```
+
+![image](https://user-images.githubusercontent.com/84133942/193019832-b8ef9245-c2b1-48dd-ae81-51bec41730d5.png)
 
 После регистрации токен сохранится в файл вида `<nickname>.token`. Чтобы его использовать, запустите:
 ```sh
