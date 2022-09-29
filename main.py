@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import json
 import logging
+import socket
 from pathlib import Path
 
 import aiofiles
@@ -11,6 +12,9 @@ from environs import Env
 
 import gui
 from minechat_utils import get_minechat_connection
+
+SMALL_RECONNECT_TIMEOUT = 3
+BIG_RECONNECT_TIMEOUT = 10
 
 
 def get_info_logger(name, format):
@@ -38,9 +42,13 @@ async def handle_connection(config, messages_queue, sending_queue, history_queue
             tg.start_soon(send_messages, config['host'], config['writing_port'], config['token'], config['nickname'],
                           sending_queue, messages_queue, status_updates_queue, watchdog_queue)
             tg.start_soon(watch_for_connection, watchdog_queue)
-    except ConnectionError:
-        logger.info('Reconnecting')
+    except (ConnectionError, socket.gaierror, anyio.ExceptionGroup) as exception:
         tg.cancel_scope.cancel()
+        if exception.__class__.__name__ != 'ConnectionError':
+            logger.info('Reconnecting with timeout')
+            await asyncio.sleep(BIG_RECONNECT_TIMEOUT)
+        else:
+            logger.info('Reconnecting')
         await handle_connection(
             config,
             messages_queue,
@@ -94,7 +102,7 @@ async def read_messages(host, port, messages_queue, history_queue, status_update
     async with get_minechat_connection(host, port) as (reader, writer):
         while not reader.at_eof():
             try:
-                async with timeout(1) as cm:
+                async with timeout(SMALL_RECONNECT_TIMEOUT) as cm:
                     message = await reader.readline()
                     message = message.decode().strip()
                     messages_queue.put_nowait(message)
@@ -121,10 +129,16 @@ async def send_messages(
         status_updates_queue.put_nowait(event)
 
         while True:
-            message = await sending_queue.get()
-            logger.info(f'Sending "{message}"')
+            try:
+                async with timeout(SMALL_RECONNECT_TIMEOUT) as cm:
+                    message = await sending_queue.get()
+            except asyncio.exceptions.TimeoutError:
+                if cm.expired:
+                    message = ''
             await submit_message(writer, message)
-            watchdog_queue.put_nowait('Message sent')
+            if message:
+                logger.info(f'Sending "{message}"')
+                watchdog_queue.put_nowait('Message sent')
             status_updates_queue.put_nowait(gui.SendingConnectionStateChanged.ESTABLISHED)
 
 
