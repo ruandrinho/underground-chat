@@ -7,10 +7,6 @@ class TkAppClosed(Exception):
     pass
 
 
-def on_close():
-    raise TkAppClosed
-
-
 def process_nickname_enter(input_field, events_queue):
     text = input_field.get()
     events_queue.put_nowait(text)
