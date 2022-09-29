@@ -28,7 +28,9 @@ async def main():
         'writing_port': args.writingport if args.writingport else env.int('WRITING_PORT', default=5050),
         'token': args.token if args.token else env('CHAT_TOKEN', default=''),
         'nickname': args.nickname if args.nickname else env('CHAT_NICKNAME', default=''),
-        'history_file': args.historyfile if args.historyfile else env('HISTORY_FILE', default='minechat.history')
+        'history_file': args.historyfile if args.historyfile else env('HISTORY_FILE', default='minechat.history'),
+        'small_reconnect_timeout': env.int('SMALL_RECONNECT_TIMEOUT', default=3),
+        'big_reconnect_timeout': env.int('BIG_RECONNECT_TIMEOUT', default=10)
     }
 
     messages_queue = asyncio.Queue()
