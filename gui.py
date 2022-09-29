@@ -1,6 +1,5 @@
 import tkinter as tk
 import anyio
-import asyncio
 from tkinter import messagebox
 from tkinter.scrolledtext import ScrolledText
 from enum import Enum
@@ -45,11 +44,7 @@ async def show_token_error():
 
 async def update_tk(root_frame, interval=1 / 120):
     while True:
-        try:
-            root_frame.update()
-        except tk.TclError:
-            # if application has been destroyed/closed
-            raise TkAppClosed()
+        root_frame.update()
         await anyio.sleep(interval)
 
 
@@ -132,7 +127,10 @@ async def draw(messages_queue, sending_queue, status_updates_queue):
     conversation_panel = ScrolledText(root_frame, wrap='none')
     conversation_panel.pack(side="top", fill="both", expand=True)
 
-    async with anyio.create_task_group() as tg:
-        tg.start_soon(update_tk, root_frame)
-        tg.start_soon(update_conversation_history, conversation_panel, messages_queue)
-        tg.start_soon(update_status_panel, status_labels, status_updates_queue)
+    try:
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(update_tk, root_frame)
+            tg.start_soon(update_conversation_history, conversation_panel, messages_queue)
+            tg.start_soon(update_status_panel, status_labels, status_updates_queue)
+    except (anyio.ExceptionGroup, tk.TclError):
+        raise TkAppClosed()

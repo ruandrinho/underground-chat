@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import socket
+from contextlib import suppress
 from pathlib import Path
 
 import aiofiles
@@ -212,7 +213,10 @@ async def main():
             )
     except InvalidToken:
         await gui.show_token_error()
+    finally:
+        tg.cancel_scope.cancel()
 
 
 if __name__ == '__main__':
-    anyio.run(main)
+    with suppress(KeyboardInterrupt, gui.TkAppClosed):
+        anyio.run(main)
