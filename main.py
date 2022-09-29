@@ -12,7 +12,7 @@ from async_timeout import timeout
 from environs import Env
 
 import gui
-from minechat_utils import get_minechat_connection
+from minechat import get_minechat_connection
 
 SMALL_RECONNECT_TIMEOUT = 3
 BIG_RECONNECT_TIMEOUT = 10

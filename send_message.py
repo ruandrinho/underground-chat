@@ -6,7 +6,7 @@ import logging
 import aiofiles
 from environs import Env
 
-from minechat_utils import get_minechat_connection
+from minechat import get_minechat_connection
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ import datetime
 import aiofiles
 from environs import Env
 
-from minechat_utils import get_minechat_connection
+from minechat import get_minechat_connection
 
 
 async def read_chat(host, port, history_file):
