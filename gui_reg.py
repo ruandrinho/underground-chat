@@ -28,7 +28,6 @@ async def update_tk(root_frame, interval=1 / 120):
 async def draw(events_queue):
     global root
     root = tk.Tk()
-    # root.protocol('WM_DELETE_WINDOW', root.destroy)
 
     root.title('Регистрация в чате Майнкрафтера')
     root.minsize(400, 0)
