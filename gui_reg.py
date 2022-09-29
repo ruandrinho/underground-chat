@@ -21,6 +21,7 @@ async def show_success(nickname):
 
 async def update_tk(root_frame, interval=1 / 120):
     while True:
+        root_frame.master.state()  # For raising TclError after closing window
         root_frame.update()
         await anyio.sleep(interval)
 
@@ -53,5 +54,8 @@ async def draw(events_queue):
     send_button["command"] = lambda: process_nickname_enter(input_field, events_queue)
     send_button.grid(row=3, column=0)
 
-    async with anyio.create_task_group() as tg:
-        tg.start_soon(update_tk, root_frame)
+    try:
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(update_tk, root_frame)
+    except (anyio.ExceptionGroup, tk.TclError):
+        raise TkAppClosed()
