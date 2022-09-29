@@ -151,10 +151,12 @@ async def sign_in(reader, writer, token):
 
 
 async def sign_up(reader, writer, nickname, send_blank=False):
-    if send_blank:
-        await write_to_chat(writer, '\n')
     nickname_query = await reader.readline()
     logger.info(nickname_query.decode().strip())
+    if send_blank:
+        await write_to_chat(writer, '\n')
+        nickname_query = await reader.readline()
+        logger.info(nickname_query.decode().strip())
     logger.info(f'Sending "{nickname}"')
     await write_to_chat(writer, f'{nickname}\n')
     return await receive_credentials(reader)

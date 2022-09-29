@@ -13,7 +13,7 @@ async def main():
     env = Env()
     env.read_env()
 
-    parser = argparse.ArgumentParser(description='Underground chat with gui_main')
+    parser = argparse.ArgumentParser(description='Underground chat with gui')
     parser.add_argument('--host', '-s', help='Host')
     parser.add_argument('--readingport', '-rp', type=int, help='Reading port')
     parser.add_argument('--writingport', '-wp', type=int, help='Writing port')
