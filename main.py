@@ -46,7 +46,7 @@ async def handle_connection(config, messages_queue, sending_queue, history_queue
         tg.cancel_scope.cancel()
         if exception.__class__.__name__ != 'ConnectionError':
             logger.info('Reconnecting with timeout')
-            await asyncio.sleep(BIG_RECONNECT_TIMEOUT)
+            await anyio.sleep(BIG_RECONNECT_TIMEOUT)
         else:
             logger.info('Reconnecting')
         await handle_connection(
@@ -109,7 +109,7 @@ async def read_messages(host, port, messages_queue, history_queue, status_update
                     history_queue.put_nowait(message)
                     watchdog_queue.put_nowait('New message in chat')
                     status_updates_queue.put_nowait(gui.ReadConnectionStateChanged.ESTABLISHED)
-            except asyncio.exceptions.TimeoutError:
+            except asyncio.TimeoutError:
                 if cm.expired:
                     watchdog_queue.put_nowait('1s timeout is elapsed')
 
@@ -197,25 +197,22 @@ async def main():
 
     await restore_messages(config['history_file'], messages_queue)
 
-    loop = asyncio.get_event_loop()
     try:
-        loop.run_until_complete(
-            await asyncio.gather(
-                gui.draw(messages_queue, sending_queue, status_updates_queue),
-                save_messages(config['history_file'], history_queue),
-                handle_connection(
-                    config,
-                    messages_queue,
-                    sending_queue,
-                    history_queue,
-                    status_updates_queue,
-                    watchdog_queue
-                )
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(gui.draw, messages_queue, sending_queue, status_updates_queue)
+            tg.start_soon(save_messages, config['history_file'], history_queue)
+            tg.start_soon(
+                handle_connection,
+                config,
+                messages_queue,
+                sending_queue,
+                history_queue,
+                status_updates_queue,
+                watchdog_queue
             )
-        )
     except InvalidToken:
         await gui.show_token_error()
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    anyio.run(main)
