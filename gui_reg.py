@@ -58,4 +58,4 @@ async def draw(events_queue):
         async with anyio.create_task_group() as tg:
             tg.start_soon(update_tk, root_frame)
     except (anyio.ExceptionGroup, tk.TclError):
-        raise TkAppClosed()
+        raise TkAppClosed

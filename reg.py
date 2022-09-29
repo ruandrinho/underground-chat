@@ -43,5 +43,5 @@ async def main():
 
 
 if __name__ == '__main__':
-    with suppress(KeyboardInterrupt, gui_reg.TkAppClosed):
+    with suppress(anyio.ExceptionGroup, KeyboardInterrupt, gui_reg.TkAppClosed):
         anyio.run(main)
