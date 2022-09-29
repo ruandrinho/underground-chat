@@ -5,7 +5,7 @@ from contextlib import suppress
 import anyio
 from environs import Env
 
-import gui
+import gui_main
 import minechat
 
 
@@ -13,7 +13,7 @@ async def main():
     env = Env()
     env.read_env()
 
-    parser = argparse.ArgumentParser(description='Underground chat with GUI')
+    parser = argparse.ArgumentParser(description='Underground chat with gui_main')
     parser.add_argument('--host', '-s', help='Host')
     parser.add_argument('--readingport', '-rp', type=int, help='Reading port')
     parser.add_argument('--writingport', '-wp', type=int, help='Writing port')
@@ -41,7 +41,7 @@ async def main():
 
     try:
         async with anyio.create_task_group() as tg:
-            tg.start_soon(gui.draw, messages_queue, sending_queue, status_updates_queue)
+            tg.start_soon(gui_main.draw, messages_queue, sending_queue, status_updates_queue)
             tg.start_soon(minechat.save_messages, config['history_file'], history_queue)
             tg.start_soon(
                 minechat.handle_connection,
@@ -53,11 +53,11 @@ async def main():
                 watchdog_queue
             )
     except minechat.InvalidToken:
-        await gui.show_token_error()
+        await gui_main.show_token_error()
     finally:
         tg.cancel_scope.cancel()
 
 
 if __name__ == '__main__':
-    with suppress(KeyboardInterrupt, gui.TkAppClosed):
+    with suppress(KeyboardInterrupt, gui_main.TkAppClosed):
         anyio.run(main)

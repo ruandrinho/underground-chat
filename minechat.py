@@ -9,7 +9,7 @@ import aiofiles
 import anyio
 from async_timeout import timeout
 
-import gui
+import gui_main
 
 SMALL_RECONNECT_TIMEOUT = 3
 BIG_RECONNECT_TIMEOUT = 10
@@ -63,7 +63,7 @@ async def handle_connection(config, messages_queue, sending_queue, history_queue
 
 
 async def read_messages(host, port, messages_queue, history_queue, status_updates_queue, watchdog_queue):
-    status_updates_queue.put_nowait(gui.ReadConnectionStateChanged.INITIATED)
+    status_updates_queue.put_nowait(gui_main.ReadConnectionStateChanged.INITIATED)
     async with get_minechat_connection(host, port) as (reader, writer):
         while not reader.at_eof():
             try:
@@ -73,7 +73,7 @@ async def read_messages(host, port, messages_queue, history_queue, status_update
                     messages_queue.put_nowait(message)
                     history_queue.put_nowait(message)
                     watchdog_queue.put_nowait('New message in chat')
-                    status_updates_queue.put_nowait(gui.ReadConnectionStateChanged.ESTABLISHED)
+                    status_updates_queue.put_nowait(gui_main.ReadConnectionStateChanged.ESTABLISHED)
             except asyncio.TimeoutError:
                 if cm.expired:
                     watchdog_queue.put_nowait('1s timeout is elapsed')
@@ -96,7 +96,7 @@ async def save_messages(filepath, history_queue):
 
 async def send_messages(
         host, port, token, nickname, sending_queue, messages_queue, status_updates_queue, watchdog_queue):
-    status_updates_queue.put_nowait(gui.SendingConnectionStateChanged.INITIATED)
+    status_updates_queue.put_nowait(gui_main.SendingConnectionStateChanged.INITIATED)
     async with get_minechat_connection(host, port) as (reader, writer):
         greeting_query = await reader.readline()
         logger.info(greeting_query.decode().strip())
@@ -105,7 +105,7 @@ async def send_messages(
         if credentials is None:
             raise InvalidToken
         messages_queue.put_nowait(f'Выполнена авторизация. Пользователь {credentials["nickname"]}')
-        event = gui.NicknameReceived(credentials['nickname'])
+        event = gui_main.NicknameReceived(credentials['nickname'])
         status_updates_queue.put_nowait(event)
 
         while True:
@@ -119,7 +119,7 @@ async def send_messages(
             if message:
                 logger.info(f'Sending "{message}"')
                 watchdog_queue.put_nowait('Message sent')
-            status_updates_queue.put_nowait(gui.SendingConnectionStateChanged.ESTABLISHED)
+            status_updates_queue.put_nowait(gui_main.SendingConnectionStateChanged.ESTABLISHED)
 
 
 async def watch_for_connection(watchdog_queue):
