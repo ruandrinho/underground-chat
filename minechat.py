@@ -48,6 +48,7 @@ async def handle_connection(config, messages_queue, sending_queue, history_queue
                 status_updates_queue,
                 watchdog_queue
             )
+            tg.start_soon(ping_pong, config, status_updates_queue, watchdog_queue)
             tg.start_soon(watch_for_connection, watchdog_queue)
     except (ConnectionError, socket.gaierror, anyio.ExceptionGroup) as exception:
         tg.cancel_scope.cancel()
@@ -61,21 +62,29 @@ async def handle_connection(config, messages_queue, sending_queue, history_queue
         )
 
 
+async def ping_pong(config, status_updates_queue, watchdog_queue):
+    async with get_connection(config['host'], config['writing_port']) as (reader, writer):
+        while True:
+            await submit_message(writer, '')
+            try:
+                async with timeout(config['small_reconnect_timeout']) as cm:
+                    await reader.readline()
+                    status_updates_queue.put_nowait(gui_main.SendingConnectionStateChanged.ESTABLISHED)
+            except asyncio.exceptions.TimeoutError:
+                if cm.expired:
+                    watchdog_queue.put_nowait('Small timeout is elapsed')
+
+
 async def read_messages(config, messages_queue, history_queue, status_updates_queue, watchdog_queue):
     status_updates_queue.put_nowait(gui_main.ReadConnectionStateChanged.INITIATED)
     async with get_connection(config['host'], config['reading_port']) as (reader, writer):
         while not reader.at_eof():
-            try:
-                async with timeout(config['small_reconnect_timeout']) as cm:
-                    message = await reader.readline()
-                    message = message.decode().strip()
-                    messages_queue.put_nowait(message)
-                    history_queue.put_nowait(message)
-                    watchdog_queue.put_nowait('New message in chat')
-                    status_updates_queue.put_nowait(gui_main.ReadConnectionStateChanged.ESTABLISHED)
-            except asyncio.TimeoutError:
-                if cm.expired:
-                    watchdog_queue.put_nowait('1s timeout is elapsed')
+            message = await reader.readline()
+            message = message.decode().strip()
+            messages_queue.put_nowait(message)
+            history_queue.put_nowait(message)
+            watchdog_queue.put_nowait('New message in chat')
+            status_updates_queue.put_nowait(gui_main.ReadConnectionStateChanged.ESTABLISHED)
 
 
 async def restore_messages(filepath, messages_queue):
@@ -100,23 +109,17 @@ async def send_messages(config, sending_queue, messages_queue, status_updates_qu
         logger.info(greeting_query.decode().strip())
 
         credentials = await sign_in(reader, writer, config['token'])
-        if credentials is None:
+        if not credentials:
             raise InvalidToken
         messages_queue.put_nowait(f'Выполнена авторизация. Пользователь {credentials["nickname"]}')
         event = gui_main.NicknameReceived(credentials['nickname'])
         status_updates_queue.put_nowait(event)
 
         while True:
-            try:
-                async with timeout(config['small_reconnect_timeout']) as cm:
-                    message = await sending_queue.get()
-            except asyncio.exceptions.TimeoutError:
-                if cm.expired:
-                    message = ''
+            message = await sending_queue.get()
             await submit_message(writer, message)
-            if message:
-                logger.info(f'Sending "{message}"')
-                watchdog_queue.put_nowait('Message sent')
+            logger.info(f'Sending "{message}"')
+            watchdog_queue.put_nowait('Message sent')
             status_updates_queue.put_nowait(gui_main.SendingConnectionStateChanged.ESTABLISHED)
 
 
