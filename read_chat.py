@@ -32,9 +32,9 @@ def main():
     args = parser.parse_args()
 
     minechat_config = {
-        'host': args.host if args.host else env('HOST', default='minechat.dvmn.org'),
-        'port': args.port if args.port else env.int('READING_PORT', default=5000),
-        'history_file': args.historyfile if args.historyfile else env('HISTORY_FILE', default='minechat.history')
+        'host': args.host or env('HOST', default='minechat.dvmn.org'),
+        'port': args.port or env.int('READING_PORT', default=5000),
+        'history_file': args.historyfile or env('HISTORY_FILE', default='minechat.history')
     }
 
     asyncio.run(read_chat(**minechat_config))
