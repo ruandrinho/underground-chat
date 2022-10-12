@@ -23,12 +23,12 @@ async def main():
     args = parser.parse_args()
 
     config = {
-        'host': args.host if args.host else env('HOST', default='minechat.dvmn.org'),
-        'reading_port': args.readingport if args.readingport else env.int('READING_PORT', default=5000),
-        'writing_port': args.writingport if args.writingport else env.int('WRITING_PORT', default=5050),
-        'token': args.token if args.token else env('CHAT_TOKEN', default=''),
-        'nickname': args.nickname if args.nickname else env('CHAT_NICKNAME', default=''),
-        'history_file': args.historyfile if args.historyfile else env('HISTORY_FILE', default='minechat.history'),
+        'host': args.host or env('HOST', default='minechat.dvmn.org'),
+        'reading_port': args.readingport or env.int('READING_PORT', default=5000),
+        'writing_port': args.writingport or env.int('WRITING_PORT', default=5050),
+        'token': args.token or env('CHAT_TOKEN', default=''),
+        'nickname': args.nickname or env('CHAT_NICKNAME', default=''),
+        'history_file': args.historyfile or env('HISTORY_FILE', default='minechat.history'),
         'small_reconnect_timeout': env.int('SMALL_RECONNECT_TIMEOUT', default=3),
         'big_reconnect_timeout': env.int('BIG_RECONNECT_TIMEOUT', default=10)
     }

@@ -28,8 +28,8 @@ async def main():
     args = parser.parse_args()
 
     config = {
-        'host': args.host if args.host else env('HOST', default='minechat.dvmn.org'),
-        'writing_port': args.writingport if args.writingport else env.int('WRITING_PORT', default=5050)
+        'host': args.host or env('HOST', default='minechat.dvmn.org'),
+        'writing_port': args.writingport or env.int('WRITING_PORT', default=5050)
     }
 
     events_queue = asyncio.Queue()
