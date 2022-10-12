@@ -30,7 +30,7 @@ class InvalidToken(Exception):
 
 
 @asynccontextmanager
-async def get_minechat_connection(host, port):
+async def get_connection(host, port):
     reader, writer = await asyncio.open_connection(host, port)
     try:
         yield reader, writer
@@ -61,7 +61,7 @@ async def handle_connection(config, messages_queue, sending_queue, history_queue
 
 async def read_messages(config, messages_queue, history_queue, status_updates_queue, watchdog_queue):
     status_updates_queue.put_nowait(gui_main.ReadConnectionStateChanged.INITIATED)
-    async with get_minechat_connection(config['host'], config['reading_port']) as (reader, writer):
+    async with get_connection(config['host'], config['reading_port']) as (reader, writer):
         while not reader.at_eof():
             try:
                 async with timeout(config['small_reconnect_timeout']) as cm:
@@ -93,7 +93,7 @@ async def save_messages(filepath, history_queue):
 
 async def send_messages(config, sending_queue, messages_queue, status_updates_queue, watchdog_queue):
     status_updates_queue.put_nowait(gui_main.SendingConnectionStateChanged.INITIATED)
-    async with get_minechat_connection(config['host'], config['writing_port']) as (reader, writer):
+    async with get_connection(config['host'], config['writing_port']) as (reader, writer):
         greeting_query = await reader.readline()
         logger.info(greeting_query.decode().strip())
 
