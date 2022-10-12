@@ -42,10 +42,22 @@ async def get_connection(host, port):
 async def handle_connection(config, messages_queue, sending_queue, history_queue, status_updates_queue, watchdog_queue):
     try:
         async with anyio.create_task_group() as tg:
-            tg.start_soon(read_messages, config,
-                          messages_queue, history_queue, status_updates_queue, watchdog_queue)
-            tg.start_soon(send_messages, config,
-                          sending_queue, messages_queue, status_updates_queue, watchdog_queue)
+            tg.start_soon(
+                read_messages,
+                config,
+                messages_queue,
+                history_queue,
+                status_updates_queue,
+                watchdog_queue
+            )
+            tg.start_soon(
+                send_messages,
+                config,
+                sending_queue,
+                messages_queue,
+                status_updates_queue,
+                watchdog_queue
+            )
             tg.start_soon(watch_for_connection, watchdog_queue)
     except (ConnectionError, socket.gaierror, anyio.ExceptionGroup) as exception:
         tg.cancel_scope.cancel()
