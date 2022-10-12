@@ -11,18 +11,8 @@ from async_timeout import timeout
 
 import gui_main
 
-
-def get_info_logger(name, format):
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
-    logger_sh = logging.StreamHandler()
-    logger_sh.setFormatter(logging.Formatter(fmt=format, style='{'))
-    logger.addHandler(logger_sh)
-    return logger
-
-
-logger = get_info_logger(__name__, '{asctime} - {name} - {levelname} - {message}')
-watchdog_logger = get_info_logger('watchdog', '[{created:.0f}] {message}')
+logger = logging.getLogger('minechat')
+watchdog_logger = logging.getLogger('minechat_watchdog')
 
 
 class InvalidToken(Exception):

@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import logging
 from contextlib import suppress
 
 import anyio
@@ -10,6 +11,16 @@ import minechat
 
 
 async def main():
+    logging.basicConfig(
+        format='{asctime} - {name} - {levelname} - {message}',
+        style='{',
+        level=logging.INFO
+    )
+    watchdog_logger = logging.getLogger('minechat_watchdog')
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(logging.Formatter(fmt='[{created:.0f}] {message}', style='{'))
+    watchdog_logger.addHandler(stream_handler)
+
     env = Env()
     env.read_env()
 
