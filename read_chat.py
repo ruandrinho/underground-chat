@@ -5,13 +5,13 @@ import datetime
 import aiofiles
 from environs import Env
 
-from minechat import get_minechat_connection
+from minechat import get_connection
 
 
 async def read_chat(host, port, history_file):
     async with (
         aiofiles.open(history_file, 'a') as chatfile,
-        get_minechat_connection(host, port) as (reader, writer)
+        get_connection(host, port) as (reader, writer)
     ):
         while not reader.at_eof():
             message = await reader.readline()

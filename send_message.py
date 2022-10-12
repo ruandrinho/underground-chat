@@ -6,7 +6,7 @@ import logging
 import aiofiles
 from environs import Env
 
-from minechat import get_minechat_connection
+from minechat import get_connection
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ async def write_to_chat(writer, message):
 
 
 async def authorize_and_send_message(message, host, port, token, nickname):
-    async with get_minechat_connection(host, port) as (reader, writer):
+    async with get_connection(host, port) as (reader, writer):
         greeting_query = await reader.readline()
         logger.info(greeting_query.decode().strip())
 

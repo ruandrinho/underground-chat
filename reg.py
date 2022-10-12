@@ -6,13 +6,13 @@ import anyio
 from environs import Env
 
 import gui_reg
-from minechat import get_minechat_connection, sign_up, save_token
+from minechat import get_connection, sign_up, save_token
 
 
 async def watch_events(config, events_queue):
     while True:
         nickname = await events_queue.get()
-        async with get_minechat_connection(config['host'], config['writing_port']) as (reader, writer):
+        async with get_connection(config['host'], config['writing_port']) as (reader, writer):
             credentials = await sign_up(reader, writer, nickname, send_blank=True)
         await save_token(credentials['nickname'], credentials['account_hash'])
         await gui_reg.show_success(credentials['nickname'])
