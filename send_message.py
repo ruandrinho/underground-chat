@@ -49,14 +49,14 @@ async def write_to_chat(writer, message):
     await writer.drain()
 
 
-async def send_message(message, host, port, token, nickname):
+async def authorize_and_send_message(message, host, port, token, nickname):
     async with get_minechat_connection(host, port) as (reader, writer):
         greeting_query = await reader.readline()
         logger.info(greeting_query.decode().strip())
 
         if token:
             credentials = await sign_in(reader, writer, token)
-            if credentials is None:
+            if not credentials:
                 logger.warning('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
                 credentials = await sign_up(reader, writer, nickname)
         else:
@@ -86,13 +86,13 @@ def main():
 
     minechat_config = {
         'message': args.message[0],
-        'host': args.host if args.host else env('HOST', default='minechat.dvmn.org'),
-        'port': args.port if args.port else env.int('WRITING_PORT', default=5050),
-        'token': args.token if args.token else env('CHAT_TOKEN', default=''),
-        'nickname': args.nickname if args.nickname else env('CHAT_NICKNAME', default='')
+        'host': args.host or env('HOST', default='minechat.dvmn.org'),
+        'port': args.port or env.int('WRITING_PORT', default=5050),
+        'token': args.token or env('CHAT_TOKEN', default=''),
+        'nickname': args.nickname or env('CHAT_NICKNAME', default='')
     }
 
-    asyncio.run(send_message(**minechat_config))
+    asyncio.run(authorize_and_send_message(**minechat_config))
 
 
 if __name__ == '__main__':
